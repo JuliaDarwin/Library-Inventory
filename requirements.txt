@@ -1,0 +1,7 @@
+streamlit
+pandas
+pymongo
+dnspython
+python-dotenv
+numpy
+openpyxl
