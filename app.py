@@ -12,6 +12,22 @@ load_dotenv()
 # Page configuration
 st.set_page_config(page_title="Biblioteca Pares", page_icon="📚", layout="wide")
 
+# Simple passcode protection
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    st.title("🔒 Accés Restringit")
+    password = st.text_input("Introdueix la contrasenya per accedir a la biblioteca:", type="password")
+    if st.button("Entrar"):
+        correct_password = os.getenv("APP_PASSWORD", "biblioteca123")
+        if password == correct_password:
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.error("Contrasenya incorrecta. Torna-ho a provar.")
+    st.stop()
+
 # MongoDB connection
 @st.cache_resource
 def get_db_collection():
