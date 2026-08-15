@@ -4,6 +4,12 @@ import json
 import os
 from dotenv import load_dotenv
 
+CATEGORY_MAPPING = {
+    "Fisica i Química": "Física i Química",
+    "Humanitats diversos": "Humanitats Diversos",
+    "Divulgació i història de la mat": "Divulgació i història de la matemática"
+}
+
 def transform_json():
     load_dotenv()
     mongo_uri = os.getenv("MONGO_URI")
@@ -33,11 +39,12 @@ def transform_json():
         # Fill empty cells (NaN) with empty strings so the JSON looks clean
         df = df.fillna("")
         tab_json = df.to_dict(orient='records')
-        final_json[tab_name] = tab_json
+        category_name = CATEGORY_MAPPING.get(tab_name, tab_name)
+        final_json[category_name] = tab_json
         
-        # Add the tab name as a 'Categoria' field to each book
+        # Add the normalized tab name as a 'Categoria' field to each book
         for book in tab_json:
-            book["Categoria"] = tab_name
+            book["Categoria"] = category_name
             
         # Insert the list of books into the collection (if the list isn't empty)
         if tab_json:
