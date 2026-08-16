@@ -43,7 +43,7 @@ bookCollection = get_db_collection()
 
 
 # Basic UI
-st.title("📚 Biblioteca Pares")
+st.title("📚 Biblioteca Coronel Pedo")
 
 try:
     count = bookCollection.count_documents({})
