@@ -186,6 +186,40 @@ def getBooksBySearch(searchOption, searchQuery):
     else:
         st.write("No books found")
 
+def getBooksByCategoryAndSearch(category, search_query):
+    allBooks = get_db_collection()
+    query = {}
+    
+    if category != "Tots":
+        query["Categoria"] = category
+        
+    if search_query.strip():
+        query["$or"] = [
+            {"Títol": {"$regex": search_query, "$options": "i"}},
+            {"Autor": {"$regex": search_query, "$options": "i"}}
+        ]
+        
+    selectedBooks = list(allBooks.find(query))
+    if selectedBooks:
+        original_books = [book.copy() for book in selectedBooks]
+        for book in selectedBooks:
+            book.pop("_id", None)
+        df = pd.DataFrame(selectedBooks).astype(str)
+        
+        results = st.dataframe(df, on_select="rerun", selection_mode="single-row", width="stretch")
+        selectedRows = results["selection"]["rows"]
+        
+        if selectedRows:
+            selected_book = original_books[selectedRows[0]]
+            if st.button("Eliminar llibre/s"):
+                st.session_state.confirm_payload = selected_book
+                st.session_state.confirm_payload["operation"] = "eliminar"
+                st.rerun()
+    else:
+        st.write("No books found matching this filter.")
+
+    
+
 
 if menu == "Veure Llibres":
     if st.session_state.confirm_payload is not None:
@@ -197,7 +231,10 @@ if menu == "Veure Llibres":
 
         if searchOption == "Categoria":
             category = st.selectbox("Escollir una categoria: ", ["Tots", "Catàleg general", "Literatura estrangera", "Literatura catalana", "Biografies-Memòries", "Història", "Filosofia", "Assaig", "Economia", "Humanitats Diversos", "Matemàtiques", "Física i Química", "Divulgació física i química", "Ciències naturals", "Ciència diversos", "Divulgació ciències naturals", "Divulgació i història de la matemática", "Història de la ciència"])
-            getBooksByCategory(category)
+            searchQuery = st.text_input("Filtrar per títol o autor (opcional):")
+            # getBooksByCategory(category)
+            getBooksByCategoryAndSearch(category, searchQuery)
+            
         else:
             searchQuery = st.text_input("Escriu aquí la teva cerca:")
             getBooksBySearch(searchOption, searchQuery)

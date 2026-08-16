@@ -21,8 +21,10 @@ def transform_json():
     db = client["books_db"]
     collection = db["books"]
     
-    print("Clearing existing documents in collection...")
-    collection.delete_many({})
+    # CAUTION: collection.delete_many({}) is commented out so running this script 
+    # will never wipe books added through the Streamlit web application.
+    # print("Clearing existing documents in collection...")
+    # collection.delete_many({})
     
     file = "Biblioteca.xlsx"
     print(f"Reading {file}...")
