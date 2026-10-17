@@ -12,22 +12,6 @@ load_dotenv()
 # Page configuration
 st.set_page_config(page_title="Biblioteca Pares", page_icon="📚", layout="wide")
 
-# Simple passcode protection
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-
-if not st.session_state.authenticated:
-    st.title("🔒 Accés Restringit")
-    password = st.text_input("Introdueix la contrasenya per accedir a la biblioteca:", type="password")
-    if st.button("Entrar"):
-        correct_password = os.getenv("APP_PASSWORD", "biblioteca123")
-        if password == correct_password:
-            st.session_state.authenticated = True
-            st.rerun()
-        else:
-            st.error("Contrasenya incorrecta. Torna-ho a provar.")
-    st.stop()
-
 # MongoDB connection
 @st.cache_resource
 def get_db_collection():
@@ -59,7 +43,17 @@ menu = st.sidebar.radio("Anar a:", [
     "Estadístiques"
 ])
 
+if st.session_state.get("authenticated", False):
+    st.sidebar.markdown("---")
+    st.sidebar.caption("🔑 Sessió d'administració iniciada")
+    if st.sidebar.button("Tancar sessió"):
+        st.session_state.authenticated = False
+        st.rerun()
+
 # ------ STATE INITIALIZATION
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
 if "contador_reset" not in st.session_state:
     st.session_state.contador_reset = 0
 
@@ -74,33 +68,52 @@ def resetForm():
     st.session_state.confirm_payload = None
     st.rerun()
 
+def clear_confirm_payload():
+    st.session_state.confirm_payload = None
+
 # -------- MODALS DE CONFIRMACIO DE LA OPERACIO
+@st.dialog("🔒 Confirmació de l'operació", on_dismiss=clear_confirm_payload)
 def modal_confirmar(data, operation):
     st.write(f"### Resum de l'operació")
-    st.json(data)
-    st.warning("Esteu segurs de procedir?")
+    display_data = {k: str(v) for k, v in data.items() if k not in ["_id", "operation"]}
+    st.json(display_data)
+
+    password = None
+    if not st.session_state.get("authenticated", False):
+        st.warning("Cal verificar la contrasenya per modificar dades:")
+        password = st.text_input("Contrasenya:", type="password")
+    else:
+        st.warning("Esteu segurs de procedir?")
     
     col1, col2 = st.columns(2) #creates 2 buttons side by side
     if col1.button("✅ Sí, continuar"):
+        if not st.session_state.get("authenticated", False):
+            correct_password = os.getenv("APP_PASSWORD", "biblioteca123")
+            if password == correct_password:
+                st.session_state.authenticated = True
+            else:
+                st.error("Contrasenya incorrecta. Torna-ho a provar.")
+                return
+
         if operation == "insertar":
             bookCollection.insert_one(data)
             st.success("Llibre guardat!")
         elif operation == "eliminar":
             bookCollection.delete_one({"_id": data["_id"]})
-            st.success("Llibre Eliminat!")
+            st.success("Llibre eliminat!")
         elif operation == "update":
             update_data = data.copy()
             update_data.pop("operation", None)
             bookCollection.update_one({"_id": data["_id"]}, {"$set": update_data})
             st.success("Llibre modificat!")
                 
-            
         import time
-        time.sleep(2)
+        time.sleep(1)
         resetForm()
         
     if col2.button("❌ No, cancel·lar"):
-        resetForm()
+        st.session_state.confirm_payload = None
+        st.rerun()
 
 
 
@@ -225,19 +238,19 @@ if menu == "Veure Llibres":
     if st.session_state.confirm_payload is not None:
         operation = st.session_state.confirm_payload.get("operation", "eliminar")
         modal_confirmar(st.session_state.confirm_payload, operation)
-    else:
-        st.subheader("Cerca de Llibres:")
-        searchOption = st.selectbox("Opcions de cerca:", ["Títol", "Autor", "Categoria", "Editorial"])
 
-        if searchOption == "Categoria":
-            category = st.selectbox("Escollir una categoria: ", ["Tots", "Catàleg general", "Literatura estrangera", "Literatura catalana", "Biografies-Memòries", "Història", "Filosofia", "Assaig", "Economia", "Humanitats Diversos", "Matemàtiques", "Física i Química", "Divulgació física i química", "Ciències naturals", "Ciència diversos", "Divulgació ciències naturals", "Divulgació i història de la matemática", "Història de la ciència"])
-            searchQuery = st.text_input("Filtrar per títol o autor (opcional):")
-            # getBooksByCategory(category)
-            getBooksByCategoryAndSearch(category, searchQuery)
-            
-        else:
-            searchQuery = st.text_input("Escriu aquí la teva cerca:")
-            getBooksBySearch(searchOption, searchQuery)
+    st.subheader("Cerca de Llibres:")
+    searchOption = st.selectbox("Opcions de cerca:", ["Títol", "Autor", "Categoria", "Editorial"])
+
+    if searchOption == "Categoria":
+        category = st.selectbox("Escollir una categoria: ", ["Tots", "Catàleg general", "Literatura estrangera", "Literatura catalana", "Biografies-Memòries", "Història", "Filosofia", "Assaig", "Economia", "Humanitats Diversos", "Matemàtiques", "Física i Química", "Divulgació física i química", "Ciències naturals", "Ciència diversos", "Divulgació ciències naturals", "Divulgació i història de la matemática", "Història de la ciència"])
+        searchQuery = st.text_input("Filtrar per títol o autor (opcional):")
+        # getBooksByCategory(category)
+        getBooksByCategoryAndSearch(category, searchQuery)
+        
+    else:
+        searchQuery = st.text_input("Escriu aquí la teva cerca:")
+        getBooksBySearch(searchOption, searchQuery)
 
 
 # -------------ADD BOOK PAGE
@@ -246,31 +259,31 @@ if menu == "Afegir nou Llibre":
 
     if st.session_state.confirm_payload is not None:
         modal_confirmar(st.session_state.confirm_payload, "insertar")
-    else:
-        c1, c2 = st.columns(2)
 
-        with c1:
-            title = st.text_input("Títol", key=f"titol_{st.session_state.contador_reset}")
-            author = st.text_input("Autor", key=f"autor_{st.session_state.contador_reset}")
-            cathegory = st.selectbox("Categoria", ["Catàleg general", "Literatura estrangera", "Literatura catalana", "Biografies-Memòries", "Història", "Filosofia", "Assaig", "Economia", "Humanitats Diversos", "Matemàtiques", "Física i Química", "Divulgació física i química", "Ciències naturals", "Ciència diversos", "Divulgació ciències naturals", "Divulgació i història de la matemática", "Història de la ciència"], key=f"cat_{st.session_state.contador_reset}")
-        with c2:
-            editorial = st.text_input("Editorial", key=f"edit_{st.session_state.contador_reset}")
-            year = st.number_input("Any", min_value=1800, step=1, key=f"any_{st.session_state.contador_reset}")
+    c1, c2 = st.columns(2)
 
-        blocked = False
-        if not title.strip():
-            blocked = True
-            st.warning("Has d'afegir un títol")
-        
-        if st.button("Registrar Llibre", disabled=blocked):
-            st.session_state.confirm_payload = {
-                "Autor": author,
-                "Títol": title,
-                "Editorial": editorial,
-                "Any": year,
-                "Categoria": cathegory,
-            }
-            st.rerun()
+    with c1:
+        title = st.text_input("Títol", key=f"titol_{st.session_state.contador_reset}")
+        author = st.text_input("Autor", key=f"autor_{st.session_state.contador_reset}")
+        cathegory = st.selectbox("Categoria", ["Catàleg general", "Literatura estrangera", "Literatura catalana", "Biografies-Memòries", "Història", "Filosofia", "Assaig", "Economia", "Humanitats Diversos", "Matemàtiques", "Física i Química", "Divulgació física i química", "Ciències naturals", "Ciència diversos", "Divulgació ciències naturals", "Divulgació i història de la matemática", "Història de la ciència"], key=f"cat_{st.session_state.contador_reset}")
+    with c2:
+        editorial = st.text_input("Editorial", key=f"edit_{st.session_state.contador_reset}")
+        year = st.number_input("Any", min_value=1800, step=1, key=f"any_{st.session_state.contador_reset}")
+
+    blocked = False
+    if not title.strip():
+        blocked = True
+        st.warning("Has d'afegir un títol")
+    
+    if st.button("Registrar Llibre", disabled=blocked):
+        st.session_state.confirm_payload = {
+            "Autor": author,
+            "Títol": title,
+            "Editorial": editorial,
+            "Any": year,
+            "Categoria": cathegory,
+        }
+        st.rerun()
 #_______________ STATISTICS
 
 if menu == "Estadístiques":

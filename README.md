@@ -53,7 +53,7 @@ Biblioteca Pares is a web-based library management application built with Python
    ```
 
 ## Usage
-Upon running the application, you will be prompted to enter the passcode defined in your `.env` file. Once authenticated, use the sidebar navigation to:
+Anyone can freely browse the catalog and view library statistics. When attempting to modify data (add, edit, or delete a book), a verification popup will prompt for the passcode defined in your `.env` file (`APP_PASSWORD`). Once verified, you remain authenticated for the session:
 - **Veure Llibres (View Books)**: Search, view, edit, or delete books.
 - **Afegir nou Llibre (Add New Book)**: Register new entries into your catalog.
 - **Estadístiques (Statistics)**: Review your library's analytics and category breakdowns.
